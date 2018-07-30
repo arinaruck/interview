@@ -1,0 +1,94 @@
+#include <algorithm>
+#include <climits>
+#include <iostream>
+#include <string>
+#include <vector>
+
+long long Max(long long a, long long b, long long c, long long d, long long e) {
+    return std::max(std::max(std::max(a, b), std::max(c, d)), e);
+}
+
+long long Min(long long a, long long b, long long c, long long d, long long e) {
+    return std::min(std::min(std::min(a, b), std::min(c, d)), e);
+}
+
+std::vector<long long> getOptions(const std::vector<std::vector<long long>>& M,
+                                  const std::vector<std::vector<long long>>& m,
+                                  size_t i, size_t j, size_t k, char op) {
+    std::vector<long long> options(4);
+    if (op == '+') {
+        options[0] = M[i][k] + M[k + 1][j];
+        options[1] = M[i][k] + m[k + 1][j];
+        options[2] = m[i][k] + M[k + 1][j];
+        options[3] = m[i][k] + m[k + 1][j];
+    }
+    if (op == '-') {
+        options[0] = M[i][k] - M[k + 1][j];
+        options[1] = M[i][k] - m[k + 1][j];
+        options[2] = m[i][k] - M[k + 1][j];
+        options[3] = m[i][k] - m[k + 1][j];
+    }
+    if (op == '*') {
+        options[0] = M[i][k] * M[k + 1][j];
+        options[1] = M[i][k] * m[k + 1][j];
+        options[2] = m[i][k] * M[k + 1][j];
+        options[3] = m[i][k] * m[k + 1][j];
+    }
+    return options;
+}
+
+int main() {
+    std::string input;
+    std::cin >> input;
+    int s = input.length();
+    int n = (s - 1) / 2;
+    std::vector<int> digits(n + 1);
+    std::vector<char> operations(n);
+    for (size_t i = 0; i < n; ++i) {
+        digits[i] = input[2 * i] - '0';
+        operations[i] = input[2 * i + 1];
+    }
+    digits[n] = input[s - 1] - '0';
+    std::vector<std::vector<long long>> m(n + 1, std::vector<long long>(n + 1));
+    std::vector<std::vector<long long>> M(n + 1, std::vector<long long>(n + 1));
+    for (size_t i = 0; i < n + 1; ++i) {
+        m[i][i] = digits[i];
+        M[i][i] = digits[i];
+    }
+    for (size_t l = 1; l <= n; ++l) {
+        for (size_t i = 0; i <= n - l; ++i) {
+            size_t j = i + l;
+            long long min = std::numeric_limits<long long>::max();
+            long long max = std::numeric_limits<long long>::min();
+            for (size_t k = i; k < j; ++k) {
+                long long a, b, c, d;
+                std::vector<long long> options(4);
+                options = getOptions(M, m, i, j, k, operations[k]);
+                a = options[0];
+                b = options[1];
+                c = options[2];
+                d = options[3];
+                min = Min(min, a, b, c, d);
+                max = Max(max, a, b, c, d);
+            }
+            m[i][j] = min;
+            M[i][j] = max;
+        }
+    }
+    std::cout << M[0][n] << "\n";
+    /*for (size_t i = 0; i < n + 1; ++i) {
+        for (size_t j = 0; j < n + 1; ++j) {
+            std::cout << m[i][j] << " ";
+        }
+        std::cout << "\n";
+    }
+    std::cout << "\n";
+    for (size_t i = 0; i < n + 1; ++i) {
+        for (size_t j = 0; j < n + 1; ++j) {
+            std::cout << M[i][j] << " ";
+        }
+        std::cout << "\n";
+    }*/
+}
+
+

@@ -1,0 +1,335 @@
+#include <algorithm>
+#include <cmath>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <tuple>
+#include <vector>
+ 
+#include <time.h>
+ 
+struct Point {
+    long long x;
+    long long y;
+ 
+    bool operator < (Point rhs) const {
+        return std::tie(x, y) < std::tie(rhs.x, rhs.y);
+    }
+ 
+    Point(long long x = 0, long long y = 0) : x(x), y(y) {};
+};
+ 
+bool ySort(Point lhs, Point rhs) {
+    return lhs.y < rhs.y;
+}
+ 
+double sqDist(Point f = 0, Point s = 0) {
+    return double((f.x - s.x) * (f.x - s.x) + (f.y - s.y) * (f.y - s.y));
+}
+ 
+long long partition(std::vector<Point>& points){
+    long long n = points.size();
+    long long midLow = n / 2;
+    long long midHigh = midLow + 1;
+    while (midLow > 0 && points[midLow - 1].x == points[midLow].x) {
+        --midLow;
+    }
+    while (midHigh <  n && points[midHigh - 1].x == points[midHigh].x) {
+        ++midHigh;
+    }
+    if (midLow == 0 && midHigh == n) {
+        return 0;
+    }
+    if (midLow == 0) {
+        return midHigh;
+    }
+    return midLow;
+}
+ 
+bool inStripe(Point p, Point mid, double d) {
+      //std::cout << std::abs(mid.x - p.x) << "\n";
+    return std::abs(mid.x - p.x) <= d;
+}
+ 
+std::vector<Point> filter(std::vector<Point>& points, double d, Point mid){
+    std::vector<Point> res;
+     // std::cout << "mid: " << mid.x << " " << mid.y << "\n";
+     // std::cout << "d: " << d << "\n";
+    for (const Point& p : points) {
+          //std::cout << p.x << " " << p.y << "\n";
+        if (inStripe(p, mid, d)) {
+            res.push_back(p);
+        }
+    }
+    return res;
+}
+ 
+double filteredDist(std::vector<Point>& points) {
+    double minSqDist = std::numeric_limits<double>::max();
+    long long n =  points.size();
+    if (n >= 8) {
+        std::sort(points.begin(), points.end(), ySort);
+        for (long long i = 0; i < points.size() - 7; ++i) {
+            for (size_t j = 1; j < 8; ++j) {
+                minSqDist = std::min(minSqDist, sqDist(points[i], points[i + j]));
+            }
+        }
+    }
+    for (long long i = std::max(0ll, n - 7); i < n - 1; ++i) {
+        for (long long j = i + 1; j < n; ++j) {
+            minSqDist = std::min(minSqDist, sqDist(points[i], points[j]));
+        }
+    }
+    return std::sqrt(minSqDist);
+}
+ 
+double minDist(std::vector<Point>& points) {
+    double minSqDist = std::numeric_limits<double>::max();
+    long long n =  points.size();
+    if (n <= 4) {
+        for (size_t i = 0; i < n - 1; ++i) {
+            for (size_t j = i + 1; j < n; ++j) {
+                minSqDist = std::min(minSqDist, sqDist(points[i], points[j]));
+            }
+        }
+        return std::sqrt(minSqDist);
+    }
+    long long mid = partition(points);
+    if (mid == 0) {
+        return filteredDist(points);  // in case all x values are the same
+    }
+    std::vector<Point> pointsL(points.begin(), points.begin() + mid);
+    std::vector<Point> pointsR(points.begin() + mid, points.end());
+    double minDistL = minDist(pointsL);
+    double minDistR = minDist(pointsR);
+    double d = std::min(minDistL, minDistR);
+    Point median = points[mid];
+    // std::cout << "\n" << median.x << " " << median.y << "\n";
+    std::vector<Point> stripe;
+    stripe = filter(points, d, median);
+    /*std::cout << "\n\n";
+    for (Point el : stripe) {
+        std::cout << el.x << " " << el.y << "\n";
+    }
+    double t = filteredDist(stripe);*/
+    return std::min(d, filteredDist(stripe));
+}
+ 
+double naiveDist(std::vector<Point>& points) {
+    double minSqDist = std::numeric_limits<double>::max();
+    long long n = points.size();
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t j = i + 1; j < n; ++j) {
+            minSqDist = std::min(minSqDist, sqDist(points[i], points[j]));
+        }
+    }
+    return std::sqrt(minSqDist);
+}
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+double distance(Point f, Point s) {
+    double xDif = f.x - s.x;
+    double yDif = f.y - s.y;
+    return std::sqrt(xDif * xDif + yDif * yDif);
+}
+ 
+template <typename It>
+double bruteForce(It b, It e) {
+    double minDist = distance(*b, *(b +1));
+    for (auto it = b; it != e; ++it) {
+        for (auto it2 = it + 1; it2 != e; ++it2) {
+            minDist = std::min(distance(*it, *it2), minDist);
+        }
+    }
+    return minDist;
+}
+ 
+double closestSplitPair(const std::vector<Point>& points, double delta) {
+    double minDist = delta;
+    for (int i = 0; i < points.size(); ++i) {
+        for (int j = 1; i + j < points.size() && j <= 8; ++j) {
+            minDist = std::min(distance(points[i], points[i + j]), minDist);
+        }
+    }
+    return minDist;
+}
+ 
+template <typename It>
+double closestPair(It xBegin, It xEnd, std::vector<Point>& y) {
+    auto yLess = [](Point f, Point s) { return f.y < s.y; };
+    if (xEnd - xBegin <= 3) {
+        y.assign(xBegin, xEnd);
+        std::sort(y.begin(), y.end(), yLess);
+        return bruteForce(xBegin, xEnd);
+    }
+ 
+    std::vector<Point> yLeft, yRight;
+    size_t size = (xEnd - xBegin) / 2;
+    double lMin = closestPair(xBegin, xBegin + size, yLeft);
+    double rMin = closestPair(xBegin + size, xEnd, yRight);
+    double best = std::min(lMin, rMin);
+ 
+    y.resize(yLeft.size() + yRight.size());
+    std::merge(yLeft.begin(), yLeft.end(), yRight.begin(), yRight.end(), y.begin(), yLess);
+ 
+    std::vector<Point> stripe;
+    int xMid = (xBegin + size)->x;
+    for (const auto& p : y) {
+        if (std::abs(p.x - xMid) < best) {
+            stripe.push_back(p);
+        }
+    }
+ 
+    if (stripe.size() > 1) {
+        best = std::min(closestSplitPair(stripe, best), best);
+    }
+    return best;
+}
+ 
+ 
+int sgn(long long x) {
+    return (x > 0) - (x < 0);
+}
+ 
+int main() {
+    long long n;
+    std::cin >> n;
+    std::vector<Point> points(n);
+    long long x, y;
+    for (size_t i = 0; i < n; ++i) {
+        std::cin >> x >> y;
+        points[i] = Point(x, y);
+    }
+    if (n <= 1) {
+        std::cout << "0\n";
+    } else {
+        std::sort(points.begin(), points.end());
+        /*for (Point el : points) {
+            std::cout << el.x << " " << el.y << "\n";
+        }*/
+        std::cout << minDist(points) << "\n";
+    }
+    return 0;
+}
+ 
+/*
+ long long n;
+    std::cin >> n;
+    std::vector<Point> points(n);
+    long long x, y;
+    for (size_t i = 0; i < n; ++i) {
+        std::cin >> x >> y;
+        points[i] = Point(x, y);
+    }
+    if (n <= 1) {
+        std::cout << "0\n";
+    } else {
+        std::sort(points.begin(), points.end());
+        for (Point el : points) {
+            std::cout << el.x << " " << el.y << "\n";
+        }
+std::cout << std::setprecision(15)  << minDist(points) << "\n";
+}
+    return 0;
+}
+ 
+ 
+/*
+srand (time(NULL));
+long long n;
+std::vector<Point> points;
+double d1, d2;
+int counter;
+do  {
+    n = rand() % 10;
+    points.resize(n);
+    long long x, y;
+    for (size_t i = 0; i < n; ++i) {
+        x = rand() % 10 - 10;
+        y = rand() % 10 - 10;
+        points[i] = Point(x, y);
+    }
+    if (n <= 1) {
+        std::cout << 0 << "\n";
+    } else {
+       std::sort(points.begin(), points.end());
+        d1 = minDist(points);
+        d2 = naiveDist(points);
+        std::cout << "OK \n";
+        counter++;
+    }
+} while (std::abs(d1 - d2) <= 0.001);
+std::cout << counter << "\n";
+std::cout << "WRONG:\t" << d1 << "  " << d2 << "\n";
+for (Point el : points) {
+    std::cout << el.x << " " << el.y << "\n";
+}
+return 0;
+ */
+ 
+/*
+ long long n;
+    std::cin >> n;
+    std::vector<Point> points(n);
+    long long x, y;
+    for (size_t i = 0; i < n; ++i) {
+        std::cin >> x >> y;
+        points[i] = Point(x, y);
+    }
+    if (n <= 1) {
+        std::cout << "0\n";
+    } else {
+        std::sort(points.begin(), points.end());
+        for (Point el : points) {
+            std::cout << el.x << " " << el.y << "\n";
+        }
+std::cout << minDist(points) << "\n";
+}
+return 0;
+ 
+ 
+ 
+ 
+  srand (time(NULL));
+    long long n;
+    std::vector<Point> points;
+    double d1, d2;
+    long long d = std::numeric_limits<long long>::max();;
+    int counter;
+    do  {
+        n = 100000;
+        points.resize(n);
+        long long x, y;
+        for (size_t i = 0; i < n; ++i) {
+            x = rand() % 2000000000 - 1000000000;
+            y = rand() % 2000000000 - 1000000000;
+            points[i] = Point(x, y);
+        }
+        if (n <= 1) {
+            std::cout << 0 << "\n";
+        } else {
+            std::sort(points.begin(), points.end());
+            d1 = minDist(points);
+            std::vector<Point> Sy;
+            d2 = closestPair(points.cbegin(), points.cend(), Sy);
+            std::cout << "OK " << counter << "\n";
+            counter++;
+        }
+    } while (std::abs(d1 - d2) <= 0.001);
+    std::cout << counter << "\n";
+    std::cout << "WRONG:\t" << d1 << "  " << d2 << "\n";
+    for (size_t i = 1; i < n; ++i) {
+        d = std::min(std::abs(points[i].y - points[i - 1].y), d);
+    }
+    std::cout << counter << "\n";
+    std::cout << "WRONG:\t" << d1 << "  " << d2  << " " << d << "\n";
+    return 0;
+*/

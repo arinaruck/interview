@@ -1,0 +1,22 @@
+#include <unordered_set>
+class Solution {
+public:
+    vector<int> twoSum(vector<int>& nums, int target) {
+        std::vector<int> idx(2);
+        unordered_multiset<int> hashtable(nums.begin(), nums.end());
+        size_t input_len =  nums.size();
+        for (size_t i = 0; i < input_len; ++i) {
+            int key = target - nums[i];
+            if ((key == nums[i] && hashtable.count(key) > 1) || (hashtable.find(key) != hashtable.end())) {
+                for (size_t j = i + 1; j < input_len; j++) {
+                    if (nums[j] == key) {
+                        idx[0] = i;
+                        idx[1] = j;
+                        break;
+                    }
+                }
+            }
+        }
+        return idx;
+    }
+};

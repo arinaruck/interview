@@ -1,0 +1,321 @@
+#include <algorithm>
+#include <deque>
+#include <iostream>
+#include <map>
+#include <set>
+#include <vector>
+#include <chrono>
+
+bool externalVertex(std::map<int, std::set<int>>& adjList, std::vector<int>& degree,
+                    std::deque<int>& externals, std::vector<int>& cover, int k) {
+    //externals contains vertices with degree <= 1
+    while (!externals.empty()) {
+        int u = externals.front();
+        externals.pop_front();
+        if (degree[u] == 1) {
+            degree[u] = 0;
+            int v = *(adjList[u].begin());
+            cover.push_back(v);
+            degree[v] = 0;
+            std::set<int> neighbours = adjList[v];
+            for (auto it = neighbours.begin(); it != neighbours.end(); ++it) {  // <= k
+                int s = *it;
+                degree[s]--;
+                if (degree[s] == 1) {
+                    externals.push_back(s);
+                }
+                adjList[s].erase(v);
+                if (adjList[s].empty()) {
+                    adjList.erase(s);
+                }
+            }
+            adjList.erase(v);
+        }
+    }
+    return cover.size() <= k;
+}
+
+
+bool moreThanKEdges(std::map<int, std::set<int>>& adjList, std::vector<int>& degree,
+                    std::deque<int>& externals, std::vector<int>& cover, int k) {
+    auto adjIt = adjList.begin();
+    while (adjIt != adjList.end()) {
+        int u = adjIt->first;
+        std::set<int> neighbours = adjIt->second;
+        if (neighbours.empty()) {
+            adjIt = adjList.erase(adjIt);
+        } else if (degree[u] > k - cover.size()) {
+            cover.push_back(u);
+            for (auto it = neighbours.begin(); it != neighbours.end(); ++it) {
+                int v = *it;
+                degree[v]--;
+                if (degree[v] == 1) {
+                    externals.push_back(v);
+                }
+                adjList[v].erase(u);
+                if (adjList[v].empty()) {
+                    adjList.erase(v);
+                }
+            }
+            degree[u] = 0;
+            adjIt = adjList.erase(adjIt);
+        } else {
+            ++adjIt;
+        }
+    }
+    return cover.size() <= k;
+}
+
+
+
+void getNewAdj(std::map<int, std::set<int>>& adjList, std::map<int, std::set<int>>& adjListU,
+               std::map<int, std::set<int>>& adjListV, std::map<int, std::set<int>>& adjListUV,
+               std::deque<int>& externals, std::deque<int>& externalsU, std::deque<int>& externalsV,
+               std::deque<int>& externalsUV,
+               std::vector<int>& degree, std::vector<int>& degreeU, std::vector<int>& degreeV,
+               std::vector<int>& degreeUV,
+               std::vector<int>& coverU, std::vector<int>& coverV,  int u, int v) {
+
+    std::set<int> neighboursU = adjList[u];
+    std::set<int> neighboursV = adjList[v];
+    std::vector<int> coveredU;
+    std::vector<int> coveredV;
+    for (auto it = neighboursU.begin(); it != neighboursU.end(); ++it) {
+        int s = *it;
+        degreeU[s]--;
+        degreeUV[s]--;
+        if (degreeU[s] == 1) {
+            externalsU.push_back(s);
+        }
+        if (degreeUV[s] == 1) {
+            externalsUV.push_back(s);
+        }
+        if (s != v) {
+            coverV.push_back(s);
+            coveredV.push_back(s);
+            degreeV[s] = 0;
+        }
+        adjListU[s].erase(u);
+        adjListUV[s].erase(u);
+    }
+    adjListU.erase(u);
+    adjListUV.erase(u);
+
+    for (auto it = neighboursV.begin(); it != neighboursV.end(); ++it) {
+        int s = *it;
+        degreeV[s]--;
+        degreeUV[s]--;
+        if (degreeV[s] == 1) {
+            externalsV.push_back(s);
+        }
+        if (degreeUV[s] == 1) {
+            externalsUV.push_back(s);
+        }
+        if (s != u) {
+            coverU.push_back(s);
+            coveredU.push_back(s);
+            degreeU[s] = 0;
+        }
+        adjListV[s].erase(v);
+        if (s != u) {
+            adjListUV[s].erase(v);
+        }
+        if (adjListUV[s].empty()) {
+            adjListUV.erase(s);
+        }
+    }
+    adjListV.erase(v);
+    adjListUV.erase(v);
+
+    for (int t : coveredU) {
+        std::set<int> neighbours = adjListU[t];
+        for (auto it = neighbours.begin(); it != neighbours.end(); ++it) {
+            int s = *it;
+            degreeU[s]--;
+            if (degreeU[s] == 1) {
+                externalsU.push_back(s);
+            }
+            adjListU[s].erase(t);
+            if (adjListU[s].empty()) {
+                adjListU.erase(s);
+            }
+        }
+        adjListU.erase(t);
+    }
+
+    for (int t : coveredV) {
+        std::set<int> neighbours = adjListV[t];
+        for (auto it = neighbours.begin(); it != neighbours.end(); ++it) {
+            int s = *it;
+            degreeV[s]--;
+            if (degreeV[s] == 1) {
+                externalsV.push_back(s);
+            }
+            adjListV[s].erase(t);
+            if (adjListV[s].empty()) {
+                adjListV.erase(s);
+            }
+        }
+        adjListV.erase(t);
+    }
+}
+
+
+bool getCover(std::map<int, std::set<int>>& adjList, std::vector<int>& degree,
+              std::deque<int>& externals, std::vector<int>& cover, int k) {
+
+    if (cover.size() > k) {
+        return false;
+    }
+
+    if (!moreThanKEdges(adjList, degree, externals, cover, k)) {  // O(n * k * logk)
+        return false;
+    }
+
+    if (adjList.empty() && cover.size() <= k) {
+        return true;
+    }
+
+    if (!externalVertex(adjList, degree, externals, cover, k)) {   // O(n * k * logk)
+        return false;
+    }
+
+    int cSize = cover.size();
+
+    if (adjList.empty() && cSize <= k) {
+        return true;
+    }
+
+
+    if (adjList.size() > (k - cSize) * (k + 1 - cSize) + 1) {
+        return false;
+    }
+
+    int n = degree.size();
+    int maxDeg = degree[0];
+    int u = 0;
+    for (size_t i = 0; i < n; ++i) {
+        if (degree[i] > maxDeg) {
+            maxDeg = degree[i];
+            u = i;
+        }
+    }
+    std::set<int> neighbours = adjList[u];
+    int v = *neighbours.begin();
+
+    std::map<int, std::set<int>> adjListU(adjList);
+    std::map<int, std::set<int>> adjListV(adjList);
+    std::map<int, std::set<int>> adjListUV(adjList);
+
+    std::deque<int> externalsU(externals);
+    std::deque<int> externalsV(externals);
+    std::deque<int> externalsUV(externals);
+
+    std::vector<int> degreeU(degree);
+    degreeU[u] = 0;
+    std::vector<int> degreeV(degree);
+    degreeV[v] = 0;
+    std::vector<int> degreeUV(degree);
+    degreeUV[u] = 0;
+    degreeUV[v] = 0;
+
+    std::vector<int> coverU(cover);
+    coverU.push_back(u);
+    std::vector<int> coverV(cover);
+    coverV.push_back(v);
+    std::vector<int> coverUV(cover);
+    coverUV.push_back(u);
+    coverUV.push_back(v);
+
+    getNewAdj(adjList, adjListU, adjListV, adjListUV,
+              externals, externalsU, externalsV, externalsUV,
+              degree, degreeU, degreeV, degreeUV,
+              coverU, coverV, u, v);
+    if (degree[v] > degree[u]) {
+        if (getCover(adjListU, degreeU, externalsU, coverU, k)) {
+            std::swap(cover, coverU);
+            std::swap(adjList, adjListU);
+            std::swap(degree, degreeU);
+            return true;
+        } else if (getCover(adjListV, degreeV, externalsV, coverV, k)) {
+            std::swap(cover, coverV);
+            std::swap(adjList, adjListV);
+            std::swap(degree, degreeV);
+            return true;
+        } else if (getCover(adjListUV, degreeUV, externalsUV, coverUV, k)) {
+            std::swap(cover, coverUV);
+            std::swap(adjList, adjListUV);
+            std::swap(degree, degreeUV);
+            return true;
+        }
+    } else {
+        if (getCover(adjListV, degreeV, externalsV, coverV, k)) {
+            std::swap(cover, coverV);
+            std::swap(adjList, adjListV);
+            std::swap(degree, degreeV);
+            return true;
+        } else if (getCover(adjListU, degreeU, externalsU, coverU, k)) {
+            std::swap(cover, coverU);
+            std::swap(adjList, adjListU);
+            std::swap(degree, degreeU);
+            return true;
+        } else if (getCover(adjListUV, degreeUV, externalsUV, coverUV, k)) {
+            std::swap(cover, coverUV);
+            std::swap(adjList, adjListUV);
+            std::swap(degree, degreeUV);
+            return true;
+        }
+
+    }
+    return false;
+}
+
+int main() {
+    int n, k;
+    long long m;
+    std::cin >> n >> m >> k;
+    std::map<int, std::set<int>> adjList;
+    std::vector<int> degree(n);
+    std::vector<int> cover;
+    std::deque<int> externals;
+    for (size_t i = 0; i < m; ++i) {
+        int u, v;
+        std::cin >> u >> v;
+        adjList[u - 1].insert(v - 1);
+        adjList[v - 1].insert(u - 1);
+        degree[u - 1]++;
+        degree[v - 1]++;
+    }
+
+    for (size_t i = 0; i < n; ++i) {
+        if (degree[i] == 1) {
+            externals.push_back(i);
+        }
+    }
+    if (!moreThanKEdges(adjList, degree, externals, cover, k)
+        || !externalVertex(adjList, degree, externals, cover, k)) {
+        std::cout << "No\n";
+    } if (getCover(adjList, degree, externals, cover, k)) {
+        std::cout << "Yes\n";
+        std::vector<int> visited(n);
+        for (int v : cover) {
+            std::cout << v + 1 << " ";
+            visited[v] = 1;
+        }
+        int left = k - cover.size();
+        if (left) {
+            for (size_t i = 0; i < n; ++i) {
+                if (!visited[i]) {
+                    std::cout << i + 1 << " ";
+                    left--;
+                    if (!left) {
+                        break;
+                    }
+                }
+            }
+        }
+        std::cout << "\n";
+    }  else {
+        std::cout << "No\n";
+    }
+}

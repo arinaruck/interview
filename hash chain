@@ -1,0 +1,116 @@
+#include <algorithm>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
+
+using std::string;
+using std::vector;
+using std::cin;
+
+struct Query {
+    string type, s;
+    size_t idx;
+};
+
+struct Node {
+    std::string val;
+    std::shared_ptr<Node> next;
+    Node(std::string s, std::shared_ptr<Node> n) : val(s), next(n) {}
+};
+
+class QueryProcessor {
+    int bucket_count;
+    std::vector<std::shared_ptr<Node>> elems;
+    size_t hash_func(const string& s) const {
+        static const size_t multiplier = 263;
+        static const size_t prime = 1000000007;
+        unsigned long long hash = 0;
+        for (int i = static_cast<int> (s.size()) - 1; i >= 0; --i)
+            hash = (hash * multiplier + s[i]) % prime;
+        return hash % bucket_count;
+    }
+
+public:
+    explicit QueryProcessor(int bucket_count): bucket_count(bucket_count) {
+        elems.assign(bucket_count, nullptr);
+    }
+
+    Query readQuery() const {
+        Query query;
+        cin >> query.type;
+        if (query.type != "check") {
+            cin >> query.s;
+        } else {
+            cin >> query.idx;
+        }
+        return query;
+    }
+
+    void writeSearchResult(bool was_found) const {
+        std::cout << (was_found ? "yes\n" : "no\n");
+    }
+
+    void processQuery(const Query& query) {
+        if (query.type == "check") {
+            size_t idx = query.idx;
+            for (std::shared_ptr<Node> ptr = elems[idx]; ptr != nullptr; ptr = ptr->next)  {
+                std::cout << ptr->val << " ";
+            }
+            std::cout << "\n";
+        } else {
+            int idx = hash_func(query.s);
+            if (query.type == "find") {
+                bool was_found = false;
+                for (std::shared_ptr<Node> ptr = elems[idx]; ptr != nullptr; ptr = ptr->next) {
+                    if (ptr->val == query.s) {
+                        was_found = true;
+                        break;
+                    }
+                }
+                writeSearchResult(was_found);
+            } else if (query.type == "add") {
+                bool was_found = false;
+                for (std::shared_ptr<Node> ptr = elems[idx]; ptr != nullptr; ptr = ptr->next) {
+                    if (ptr->val == query.s) {
+                        was_found = true;
+                        break;
+                    }
+                }
+                if (!was_found) {
+                    std::shared_ptr<Node> next_ptr = elems[idx];
+                    elems[idx] = std::shared_ptr<Node>(new Node(query.s, next_ptr));
+                }
+            } else if (query.type == "del") {
+                if (elems[idx] != nullptr) {
+                    if (elems[idx]->val == query.s) {
+                        elems[idx] = elems[idx]->next;
+                    } else {
+                        for (std::shared_ptr<Node> ptr = elems[idx]; ptr->next != nullptr; ptr = ptr->next) {
+                            if (ptr->next->val == query.s) {
+                                ptr->next = ptr->next->next;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    void processQueries() {
+        int n;
+        cin >> n;
+        for (int i = 0; i < n; ++i)
+            processQuery(readQuery());
+    }
+};
+
+int main() {
+    std::ios_base::sync_with_stdio(false);
+    int bucket_count;
+    cin >> bucket_count;
+    QueryProcessor proc(bucket_count);
+    proc.processQueries();
+    return 0;
+}

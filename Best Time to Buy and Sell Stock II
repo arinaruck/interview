@@ -1,0 +1,20 @@
+int maxProfit(vector<int>& prices) {
+    size_t n = prices.size();
+    if (!n) {
+        return 0;
+    }
+    int sum = 0;
+    int min = prices[0];
+    int max = prices[0];
+    for (size_t i = 1; i < n; ++i) {
+        if (prices[i] < max) {
+            sum += max - min;
+            min = prices[i];
+            max = prices[i];
+        } else if (prices[i] > max) {
+            max = prices[i];
+        }
+    }
+    sum += max - min;
+    return sum;
+}
